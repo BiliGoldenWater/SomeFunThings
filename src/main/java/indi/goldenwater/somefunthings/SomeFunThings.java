@@ -12,7 +12,7 @@ public class SomeFunThings {
         final boolean withAlpha = true;
 
         try {
-            someFun.FileToImage(new File("in." + inFileType), new File("out." + imageType), imageType, withAlpha);
+//            someFun.FileToImage(new File("in." + inFileType), new File("out." + imageType), imageType, withAlpha);
             someFun.ImageToFile(new File("out." + imageType), new File("out." + inFileType), withAlpha);
         } catch (IOException e) {
             e.printStackTrace();

@@ -9,13 +9,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Arrays;
 
 public class SomeFun {
     public void FileToImage(File infile, File outfile, String imageType, boolean withAlpha) throws IOException {
         FileInputStream fileInputStream = new FileInputStream(infile);
         int bytePerPixel = withAlpha ? 4 : 3;
 
-        BigDecimal inFileLength = BigDecimal.valueOf(infile.length()).divide(BigDecimal.valueOf(bytePerPixel), RoundingMode.UP);
+        BigDecimal inFileLength = BigDecimal
+                .valueOf(infile.length())
+                .divide(BigDecimal.valueOf(bytePerPixel), RoundingMode.UP);
         BigDecimal widthB = BigDecimal.ONE, heightB = inFileLength;
 
         while (widthB.compareTo(heightB) < 0) {
@@ -27,7 +30,11 @@ public class SomeFun {
         byte[] dataBuff = new byte[width * bytePerPixel];
         int dataLength;
 
-        BufferedImage image = new BufferedImage(width, height, withAlpha ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(
+                width,
+                height,
+                withAlpha ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB
+        );
 
         for (int y = 0; y < height; y++) {
             dataLength = fileInputStream.read(dataBuff);
@@ -68,9 +75,31 @@ public class SomeFun {
         BufferedImage image = ImageIO.read(infile);
         byte[] dataBuff = new byte[image.getWidth() * bytePerPixel];
         int i = 0;
+        int[] lastNotNull = new int[2];
 
+//        long start = System.nanoTime();
         for (int y = 0; y < image.getHeight(); y++) {
-//                long start = System.nanoTime();
+            for (int x = 0; x < image.getWidth(); x++) {
+                Color color = new Color(image.getRGB(x, y), withAlpha);
+                int r, g, b, a = 0;
+                r = (byte) color.getRed();
+                g = (byte) color.getGreen();
+                b = (byte) color.getBlue();
+                if (withAlpha) {
+                    a = (byte) color.getAlpha();
+                }
+                if (!(r == 0 && g == 0 && b == 0 && a == 0)) {
+                    lastNotNull[0] = x;
+                    lastNotNull[1] = y;
+                }
+            }
+        }
+//        System.out.println(System.nanoTime()-start);
+
+        write:
+        for (int y = 0; y < image.getHeight(); y++) {
+//            long start = System.nanoTime();
+            Arrays.fill(dataBuff, (byte) 0);
             for (int x = 0; x < image.getWidth(); x++) {
                 Color color = new Color(image.getRGB(x, y), withAlpha);
                 dataBuff[i] = (byte) color.getRed();
@@ -80,10 +109,24 @@ public class SomeFun {
                     dataBuff[i + 3] = (byte) color.getAlpha();
                 }
                 i += bytePerPixel;
+                if (y == lastNotNull[1] && x == lastNotNull[0]) {
+                    if (color.getGreen() == 0 && color.getBlue() == 0 && (color.getAlpha() == 0 || !withAlpha)) {
+                        i -= withAlpha ? 3 : 2;
+                    } else if (color.getBlue() == 0 && (color.getAlpha() == 0 || !withAlpha)) {
+                        i -= withAlpha ? 2 : 1;
+                    } else if (color.getAlpha() == 0) {
+                        i -= 1;
+                    }
+                    byte[] data = new byte[i];
+                    System.arraycopy(dataBuff, 0, data, 0, i);
+                    fileOutputStream.write(data);
+                    break write;
+                }
             }
-//                System.out.println(System.nanoTime()-start);
+
             fileOutputStream.write(dataBuff);
             i = 0;
+//            System.out.println(System.nanoTime() - start);
         }
         fileOutputStream.close();
     }
